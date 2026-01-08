@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Beatmaker - Roguelike Beatmaking System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-void: #0d0a0f;
+            --bg-chamber: #1a1520;
+            --border-stone: #2d2535;
+            --torch-glow: #ff8c42;
+            --mystical-purple: #6b4e9e;
+            --danger-red: #ff4458;
+            --moss-green: #3d5a47;
+            --ancient-gold: #d4a764;
+            --text-parchment: #e8dfd0;
+            --text-faded: #a89984;
+            --text-glow: #ffc87c;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: var(--bg-void);
+            color: var(--text-parchment);
+            min-height: 100vh;
+            background-image: 
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 2px, rgba(255,255,255,0.03) 3px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 2px, rgba(255,255,255,0.03) 3px);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-void);
+            padding: 20px;
+            border-bottom: 2px solid var(--border-stone);
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .title {
+            font-size: 2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--torch-glow);
+            text-shadow: 0 0 20px rgba(255, 140, 66, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9em;
+            color: var(--text-faded);
+        }
+
+        .seed-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .seed-text {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            color: var(--ancient-gold);
+            background: var(--bg-chamber);
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px solid var(--border-stone);
+        }
+
+        .btn {
+            background: var(--bg-chamber);
+            color: var(--text-parchment);
+            border: 2px solid var(--border-stone);
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1em;
+            border-radius: 5px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover:not(:disabled) {
+            border-color: var(--torch-glow);
+            box-shadow: 0 0 15px rgba(255, 140, 66, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--mystical-purple);
+            border-color: var(--mystical-purple);
+            box-shadow: 0 0 15px rgba(107, 78, 158, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger-red);
+            border-color: var(--danger-red);
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.85em;
+        }
+
+        .card {
+            background: var(--bg-chamber);
+            border: 2px solid var(--border-stone);
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--torch-glow), var(--mystical-purple));
+            opacity: 0.5;
+        }
+
+        .room-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .room-number {
+            font-size: 1.5em;
+            color: var(--ancient-gold);
+            text-shadow: 0 0 10px rgba(212, 167, 100, 0.5);
+        }
+
+        .room-name-input {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-stone);
+            color: var(--text-parchment);
+            padding: 8px;
+            font-family: inherit;
+            font-size: 1em;
+            border-radius: 5px;
+        }
+
+        .track-type-select {
+            background: var(--bg-void);
+            color: var(--text-parchment);
+            border: 1px solid var(--border-stone);
+            padding: 8px;
+            font-family: inherit;
+            border-radius: 5px;
+        }
+
+        .section {
+            margin: 25px 0;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            border-left: 3px solid var(--border-stone);
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-glow);
+        }
+
+        .dice-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .dice-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dice-label {
+            font-size: 0.85em;
+            color: var(--text-faded);
+            text-align: center;
+        }
+
+        .dice-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            background: var(--bg-void);
+            border: 3px solid var(--torch-glow);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--torch-glow);
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(255, 140, 66, 0.3);
+            user-select: none;
+        }
+
+        .dice-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 140, 66, 0.6);
+        }
+
+        .dice-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--border-stone);
+            color: var(--text-faded);
+        }
+
+        .dice-button.rolling {
+            animation: shake 0.5s ease-in-out, glow 0.5s ease-in-out;
+        }
+
+        .dice-button.rolled {
+            border-color: var(--ancient-gold);
+            color: var(--ancient-gold);
+            box-shadow: 0 0 20px rgba(212, 167, 100, 0.5);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg) scale(1.1); }
+            75% { transform: rotate(15deg) scale(1.1); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 140, 66, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(255, 140, 66, 0.8); }
+        }
+
+        .roll-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 140, 66, 0.1);
+            border-left: 3px solid var(--torch-glow);
+            border-radius: 5px;
+        }
+
+        .roll-number {
+            font-family: 'Courier New', monospace;
+            font-size: 1.3em;
+            color: var(--torch-glow);
+            font-weight: bold;
+        }
+
+        .mutation-text, .curse-text {
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        .curse-section {
+            border-left-color: var(--danger-red);
+            background: rgba(255, 68, 88, 0.1);
+        }
+
+        .curse-warning {
+            color: var(--danger-red);
+            font-weight: bold;
+        }
+
+        .notes-area {
+            width: 100%;
+            min-height: 100px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-stone);
+            color: var(--text-parchment);
+            padding: 15px;
+            font-family: inherit;
+            border-radius: 5px;
+            resize: vertical;
+        }
+
+        .power-up-select {
+            width: 100%;
+            max-width: 300px;
+            background: var(--bg-void);
+            color: var(--ancient-gold);
+            border: 2px solid var(--ancient-gold);
+            padding: 10px;
+            font-family: inherit;
+            border-radius: 5px;
+        }
+
+        .collapsible {
+            margin: 20px 0;
+        }
+
+        .collapsible-header {
+            background: var(--bg-chamber);
+            padding: 15px;
+            cursor: pointer;
+            border: 1px solid var(--border-stone);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(107, 78, 158, 0.2);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.open {
+            max-height: 2000px;
+        }
+
+        .past-room {
+            opacity: 0.8;
+            background: rgba(212, 167, 100, 0.05);
+        }
+
+        .past-room .notes-area {
+            background: rgba(255, 193, 7, 0.1);
+            font-style: italic;
+        }
+
+        .past-room-warning {
+            color: var(--ancient-gold);
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .active-effects {
+            background: rgba(255, 68, 88, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid var(--danger-red);
+        }
+
+        .effect-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-stone);
+        }
+
+        .effect-item:last-child {
+            border-bottom: none;
+        }
+
+        .forced-rooms-banner {
+            background: var(--danger-red);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-chamber);
+            border: 2px solid var(--border-stone);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .modal-header {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: var(--torch-glow);
+        }
+
+        .start-options {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .option-group {
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+            border: 2px solid var(--border-stone);
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--bg-void);
+            color: var(--ancient-gold);
+            border: 2px solid var(--border-stone);
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            border-radius: 5px;
+            text-align: center;
+            letter-spacing: 3px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .reference-table {
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+
+        .reference-item {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-stone);
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .tag {
+            background: var(--mystical-purple);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .export-text {
+            width: 100%;
+            min-height: 300px;
+            background: var(--bg-void);
+            color: var(--text-parchment);
+            border: 1px solid var(--border-stone);
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            border-radius: 5px;
+        }
+
+        .powerup-roll-banner {
+            background: var(--ancient-gold);
+            color: var(--bg-void);
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 1.5em;
+            }
+            
+            .header-stats {
+                font-size: 0.8em;
+            }
+            
+            .dice-button {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5em;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+
+            .dice-container {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">⚔️ Super Beatmaker</div>
+        <div class="header-stats">
+            <span id="roomCounter">Room 0</span>
+            <span id="powerUpCounter">⚡ Power-Ups: 0</span>
+            <span id="curseCounter">🔴 Active Curses: 0</span>
+        </div>
+        <div class="seed-display">
+            <span style="color: var(--text-faded);">Seed:</span>
+            <span class="seed-text" id="seedDisplay">------</span>
+            <button class="btn btn-small" onclick="copySeed()">📋 Copy</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="gameArea" class="hidden">
+            <div id="forcedRoomsBanner" class="hidden forced-rooms-banner"></div>
+            
+            <div class="card" id="currentRoomCard">
+                <div class="room-header">
+                    <span class="room-number" id="currentRoomNumber">Room 1</span>
+                    <input type="text" class="room-name-input" id="roomNameInput" placeholder="Name this room...">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                        <input type="checkbox" id="randomTrackType"> Random Track Type
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="color: var(--text-faded); display: block; margin-bottom: 5px;">Track Type:</label>
+                    <select class="track-type-select" id="trackTypeSelect"></select>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">🎲 Mutation</div>
+                    <button class="dice-button" id="mutationDice" onclick="rollMutation()">🎲</button>
+                    <div id="mutationResult" class="hidden roll-result">
+                        <div class="roll-number"></div>
+                        <div class="mutation-text"></div>
+                    </div>
+                </div>
+
+                <div class="section curse-section hidden" id="curseSection">
+                    <div class="section-title">💀 Curse Check</div>
+                    <div class="dice-container">
+                        <div class="dice-group">
+                            <button class="dice-button" id="curseCheckDice" onclick="rollCurseCheck()">🎲</button>
+                            <div class="dice-label">Curse Check</div>
+                        </div>
+                        <div class="dice-group">
+                            <button class="dice-button" id="targetDice" onclick="rollTarget()" disabled>🎲</button>
+                            <div class="dice-label">Target Selection</div>
+                        </div>
+                        <div class="dice-group">
+                            <button class="dice-button" id="effectDice" onclick="rollEffect()" disabled>🎲</button>
+                            <div class="dice-label">Curse Effect</div>
+                        </div>
+                    </div>
+                    <div id="curseResult" class="hidden roll-result">
+                        <div id="curseCheckResult"></div>
+                        <div id="targetResult"></div>
+                        <div id="effectResult"></div>
+                    </div>
+                </div>
+
+                <div class="section hidden" id="powerUpSection">
+                    <div class="section-title">✨ Power-Ups Available: <span id="powerUpCount">0</span></div>
+                    <select class="power-up-select" id="powerUpSelect">
+                        <option value="">Select Power-Up to Use...</option>
+                        <option value="redirect">Curse Redirect - Reroll curse target</option>
+                        <option value="lock">Room Lock - Protect a track (max 1 per run)</option>
+                        <option value="painshift">Pain Shift - No mutation, guaranteed curse (after Room 3)</option>
+                        <option value="split">Split the Wound - Split curse between two tracks</option>
+                        <option value="breath">One Last Breath - Reverse one curse, force final room</option>
+                    </select>
+                    <button class="btn btn-small" onclick="usePowerUp()" style="margin-top: 10px;">Use Power-Up</button>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📝 Notes</div>
+                    <textarea class="notes-area" id="notesArea" placeholder="Document your creative process..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="finalizeBtn" onclick="finalizeRoom()" disabled>Finalize Room & Continue</button>
+            </div>
+
+            <div class="collapsible hidden" id="previousRoomsSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('previousRooms')">
+                    <span>▼ Previous Rooms (<span id="prevRoomCount">0</span>)</span>
+                </div>
+                <div class="collapsible-content" id="previousRooms"></div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible('activeEffects')">
+                    <span>▼ Active Effects (<span id="activeEffectCount">0</span>)</span>
+                </div>
+                <div class="collapsible-content" id="activeEffects">
+                    <div class="active-effects">
+                        <div id="effectsList">No active curses</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="showRollHistory()">📜 Roll History</button>
+                <button class="btn" onclick="showMutationTable()">🎲 Mutations</button>
+                <button class="btn" onclick="showCurseTable()">💀 Curses</button>
+                <button class="btn" onclick="showPowerUpReference()">✨ Power-Ups</button>
+                <button class="btn" onclick="showTagsReference()">🏷️ Run Tags</button>
+                <button class="btn btn-danger" onclick="endRun()" id="endRunBtn">🏁 End Run</button>
+                <button class="btn" onclick="exportRun()">📤 Export Run</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Modal -->
+    <div class="modal open" id="startModal">
+        <div class="modal-content">
+            <div class="modal-header">Enter the Dungeon</div>
+            <div class="start-options">
+                <div class="option-group">
+                    <h3>🎲 New Run</h3>
+                    <p style="color: var(--text-faded); margin: 10px 0;">Start fresh with a random seed</p>
+                    <button class="btn btn-primary" onclick="startNewRun()">Start New Run</button>
+                </div>
+                
+                <div class="option-group">
+                    <h3>⚔️ Challenge Mode</h3>
+                    <p style="color: var(--text-faded); margin: 10px 0;">Enter a seed to play the same challenge</p>
+                    <input type="text" class="seed-input" id="seedInput" maxlength="6" placeholder="K7R3M2">
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn" onclick="generateRandomSeed()">Generate Random</button>
+                        <button class="btn btn-primary" onclick="startSeededRun()">Start Challenge</button>
+                    </div>
+                </div>
+                
+                <div class="option-group">
+                    <h3>📥 Import Run</h3>
+                    <p style="color: var(--text-faded); margin: 10px 0;">Continue a collaborative run</p>
+                    <input type="file" id="importFile" accept=".json" style="margin: 10px 0;">
+                    <button class="btn btn-primary" onclick="importRun()">Import & Continue</button>
+                </div>
+            </div>
+            
+            <div id="continueOption" class="hidden" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--border-stone);">
+                <h3>📂 Continue Previous Run?</h3>
+                <p style="color: var(--text-faded); margin: 10px 0;">You have a saved run in progress</p>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="continueSavedRun()">Continue</button>
+                    <button class="btn" onclick="clearSavedRun()">Start Fresh</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal -->
+    <div class="modal" id="genericModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalTitle">Modal</div>
+            <div id="modalBody"></div>
+            <button class="btn" onclick="closeModal()" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== GAME DATA =====
+        const TRACK_TYPES = [
+            "One-Shot Drums", "Drum Loop", "Percussion", "Bass", "Lead", "Chord", "Pad",
+            "Piano/Keys", "Sample", "FX or Texture", "Arp/Sequence", "Vocal/Voice",
+            "Acoustic Instrument", "Electric Instrument", "Player's Choice"
+        ];
+
+        const MUTATIONS = {
+            1: "Sum the Track to mono.",
+            3: "Track must be monophonic.",
+            5: "Limited to one octave or four slices.",
+            7: "Notes/slices must be fixed velocity.",
+            9: "Track must loop one bar over and over.",
+            11: "May only play on beats 1 and 3.",
+            13: "May only play on beats 2 and 4.",
+            15: "Must be played or sequenced in triplets.",
+            17: "May not be quantized; must be performed live.",
+            19: "Must be quantized to 1/16 steps.",
+            21: "Must be programmed in a step sequencer.",
+            23: "Notes/slices can't be edited after they've been performed/programmed.",
+            25: "Cannot be re-sequenced after the Room resolves. Can only delete notes/slices.",
+            27: "Must be altered and resampled before composing.",
+            29: "Shorten envelope to be percussive.",
+            31: "Must use one sound or note only.",
+            33: "Cannot use the same note or slice twice.",
+            35: "Notes must be played in strict order (low→high / first→last).",
+            37: "Every note must repeat once before another may be played.",
+            39: "There can be no silence in the Track.",
+            41: "Must pass through reverb before composing.",
+            43: "Must pass through delay before composing.",
+            45: "May not use effects.",
+            47: "May use only one effect.",
+            49: "Must be side-chained to the previous Track.",
+            51: "Must be noise-gated.",
+            53: "Must pass through a low-pass filter (1 kHz).",
+            55: "Must be detuned slightly ±10 cents.",
+            57: "You can't audition sounds. Pick blind before composing.",
+            59: "All effects must be added and tuned before you choose a sound.",
+            61: "Mute all rhythms and the metronome for the duration of the Room.",
+            63: "Roll twice. Apply both Mutations.",
+            65: "Only apply effects that have already been used.",
+            67: "Must include one deliberate wrong note.",
+            69: "No Mutation.",
+            71: "Track must abandon its intended Track Type.",
+            73: "Solo this Track for the duration of the Room. Metronome allowed.",
+            75: "Only use effects that haven't been used.",
+            77: "Once Room is Finalized, volume is locked.",
+            79: "No Mutation.",
+            81: "No Mutation.",
+            83: "Purpose of Track changes to match previous Room. If this is Room One, re-roll.",
+            85: "Repeat the last Room's Mutation. If this is the first Room, no Mutation.",
+            87: "Once you begin composing, The Room finalizes in three minutes.",
+            89: "Must contain the same amount of notes as Target Track.",
+            91: "Compose Track while it's muted. Select sounds/patch before muting. No unmute until Room is Finalized.",
+            93: "Each note on this track requires deleting one note from another Track. If Room One, no Mutation.",
+            95: "Take a Target Curse instead.",
+            97: "Once a note or slice is placed, it can't be moved, only deleted.",
+            99: "Roll afterward. 80 or higher = delete Track. If Room One, no Mutation."
+        };
+
+        const TARGET_CURSES = {
+            1: "Mute until end of run.",
+            5: "Collapse to mono.",
+            9: "1/32 quantize.",
+            13: "Pan hard left or right.",
+            17: "Track must remain constant in the final arrangement.",
+            21: "Resample, Chop, Reverse, Re-sequence.",
+            25: "Pitch shift one octave.",
+            29: "Apply Flanger or Chorus.",
+            33: "Force a Room. The next Room will have two Mutations.",
+            37: "Turn Track down -6 db.",
+            41: "Strip all effects.",
+            45: "This Track is now the target of all future Curses until end of Run.",
+            49: "Over-compress.",
+            53: "When declaring the Run over, Roll a d100. On 51 or above, force another Room.",
+            57: "Delete Track. You can't replace its role.",
+            61: "No Re-sequencing or Volume change.",
+            65: "Remove half the notes/chops.",
+            69: "Loop a short segment.",
+            73: "Erase all notes/slices except first and last.",
+            77: "This Track can't loop back to back.",
+            81: "Delete the first bar of the Track.",
+            85: "Delete the last bar of the Track.",
+            89: "Cannot edit Track rest of Run.",
+            93: "Apply last Curse to another track of your choosing. If first Curse, ignore.",
+            97: "Re-roll Twice."
+        };
+
+        const MIX_CURSES = {
+            1: "This is the last Room. If this is Room One or Room Two, re-roll.",
+            2: "Delay on Entire Mix.",
+            8: "No quantize for rest of Run. All must be performed live.",
+            15: "1/32 quantize for rest of Run.",
+            22: "Decrease BPM by 10.",
+            29: "Increase BPM by 10.",
+            36: "Reverb on Entire Mix.",
+            43: "Resample Entire Mix, Disable all other Tracks.",
+            50: "You can no longer resample unless instructed by a Curse or Mutation.",
+            57: "Adjust your Monitoring. You cannot change it for rest of Run.",
+            64: "You cannot adjust volume of previous Tracks.",
+            71: "Automation is now banned.",
+            78: "Mix must be summed to mono.",
+            85: "Only previously used effects can be used until end of Run.",
+            92: "Roll three Target Curses."
+        };
+
+        // ===== SEEDED RNG =====
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = this.hashCode(seed);
+            }
+
+            hashCode(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash);
+            }
+
+            next() {
+                this.seed = (this.seed * 1664525 + 1013904223) % 4294967296;
+                return this.seed / 4294967296;
+            }
+
+            roll(max) {
+                return Math.floor(this.next() * max) + 1;
+            }
+        }
+
+        // ===== GAME STATE =====
+        let gameState = {
+            seed: '',
+            rng: null,
+            currentRoom: 0,
+            rooms: [],
+            powerUps: 0,
+            activeCurses: [],
+            rollHistory: [],
+            forcedRooms: 0,
+            roomLockUsed: false,
+            oneLastBreathUsed: false,
+            usedEffects: [],
+            powerUpUsedThisRoom: false,
+            curseState: {
+                checkRoll: null,
+                targetRolls: [],
+                effectRoll: null,
+                curseType: null
+            }
+        };
+
+        // ===== INITIALIZATION =====
+        function init() {
+            populateTrackTypes();
+            checkForSavedGame();
+        }
+
+        function populateTrackTypes() {
+            const select = document.getElementById('trackTypeSelect');
+            TRACK_TYPES.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                select.appendChild(option);
+            });
+        }
+
+        function checkForSavedGame() {
+            const saved = localStorage.getItem('beatmaker_autosave');
+            if (saved) {
+                document.getElementById('continueOption').classList.remove('hidden');
+            }
+        }
+
+        function generateRandomSeed() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let seed = '';
+            for (let i = 0; i < 6; i++) {
+                seed += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('seedInput').value = seed;
+        }
+
+        function startNewRun() {
+            generateRandomSeed();
+            const seed = document.getElementById('seedInput').value;
+            initializeGame(seed);
+        }
+
+        function startSeededRun() {
+            const seed = document.getElementById('seedInput').value.toUpperCase().trim();
+            if (seed.length !== 6) {
+                alert('Seed must be exactly 6 characters');
+                return;
+            }
+            initializeGame(seed);
+        }
+
+        function continueSavedRun() {
+            const saved = localStorage.getItem('beatmaker_autosave');
+            if (saved) {
+                gameState = JSON.parse(saved);
+                gameState.rng = new SeededRandom(gameState.seed);
+                for (let i = 0; i < gameState.rollHistory.length; i++) {
+                    gameState.rng.roll(100);
+                }
+                closeStartModal();
+                renderGame();
+            }
+        }
+
+        function clearSavedRun() {
+            localStorage.removeItem('beatmaker_autosave');
+            document.getElementById('continueOption').classList.add('hidden');
+        }
+
+        function initializeGame(seed) {
+            gameState = {
+                seed: seed,
+                rng: new SeededRandom(seed),
+                currentRoom: 1,
+                rooms: [],
+                powerUps: 0,
+                activeCurses: [],
+                rollHistory: [],
+                forcedRooms: 0,
+                roomLockUsed: false,
+                oneLastBreathUsed: false,
+                usedEffects: [],
+                powerUpUsedThisRoom: false,
+                curseState: {
+                    checkRoll: null,
+                    targetRolls: [],
+                    effectRoll: null,
+                    curseType: null
+                }
+            };
+            
+            closeStartModal();
+            startRoom();
+            saveGame();
+        }
+
+        function closeStartModal() {
+            document.getElementById('startModal').classList.remove('open');
+            document.getElementById('gameArea').classList.remove('hidden');
+        }
+
+        // ===== ROOM MANAGEMENT =====
+        function startRoom() {
+            const roomData = {
+                number: gameState.currentRoom,
+                name: '',
+                trackType: '',
+                mutation: null,
+                curse: null,
+                notes: '',
+                powerUpUsed: null,
+                finalized: false
+            };
+            
+            gameState.rooms.push(roomData);
+            gameState.powerUpUsedThisRoom = false;
+            gameState.curseState = {
+                checkRoll: null,
+                targetRolls: [],
+                effectRoll: null,
+                curseType: null
+            };
+            
+            // Reset UI
+            document.getElementById('mutationResult').classList.add('hidden');
+            document.getElementById('curseResult').classList.add('hidden');
+            document.getElementById('mutationDice').disabled = false;
+            document.getElementById('curseCheckDice').disabled = false;
+            document.getElementById('targetDice').disabled = true;
+            document.getElementById('effectDice').disabled = true;
+            document.getElementById('curseCheckDice').classList.remove('rolled');
+            document.getElementById('targetDice').classList.remove('rolled');
+            document.getElementById('effectDice').classList.remove('rolled');
+            document.getElementById('roomNameInput').value = '';
+            document.getElementById('notesArea').value = '';
+            document.getElementById('randomTrackType').checked = false;
+            document.getElementById('trackTypeSelect').selectedIndex = 0;
+            document.getElementById('powerUpSelect').selectedIndex = 0;
+            document.getElementById('curseCheckResult').innerHTML = '';
+            document.getElementById('targetResult').innerHTML = '';
+            document.getElementById('effectResult').innerHTML = '';
+            
+            renderGame();
+            updateForcedRoomsBanner();
+            
+            if (gameState.currentRoom > 1) {
+                document.getElementById('curseSection').classList.remove('hidden');
+            } else {
+                document.getElementById('curseSection').classList.add('hidden');
+            }
+        }
+
+        function renderGame() {
+            document.getElementById('seedDisplay').textContent = gameState.seed;
+            document.getElementById('roomCounter').textContent = `Room ${gameState.currentRoom}`;
+            document.getElementById('powerUpCounter').textContent = `⚡ Power-Ups: ${gameState.powerUps}`;
+            document.getElementById('curseCounter').textContent = `🔴 Active Curses: ${gameState.activeCurses.length}`;
+            
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            document.getElementById('currentRoomNumber').textContent = `Room ${currentRoomData.number}`;
+            document.getElementById('roomNameInput').value = currentRoomData.name;
+            document.getElementById('notesArea').value = currentRoomData.notes;
+            
+            if (gameState.powerUps > 0 && !gameState.powerUpUsedThisRoom) {
+                document.getElementById('powerUpSection').classList.remove('hidden');
+                document.getElementById('powerUpCount').textContent = gameState.powerUps;
+            } else {
+                document.getElementById('powerUpSection').classList.add('hidden');
+            }
+            
+            renderPreviousRooms();
+            renderActiveEffects();
+            
+            const canFinalize = currentRoomData.mutation !== null && 
+                               (gameState.currentRoom === 1 || gameState.curseState.checkRoll !== null);
+            document.getElementById('finalizeBtn').disabled = !canFinalize;
+        }
+
+        function renderPreviousRooms() {
+            const container = document.getElementById('previousRooms');
+            const section = document.getElementById('previousRoomsSection');
+            const completedRooms = gameState.rooms.filter(r => r.finalized);
+            
+            if (completedRooms.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            
+            section.classList.remove('hidden');
+            document.getElementById('prevRoomCount').textContent = completedRooms.length;
+            
+            container.innerHTML = completedRooms.map(room => `
+                <div class="card past-room">
+                    <div class="room-header">
+                        <span class="room-number">Room ${room.number}</span>
+                        <span>${room.name || 'Untitled'}</span>
+                        <span style="color: var(--text-faded); font-size: 0.85em;">
+                            [M:${room.mutation?.roll || '?'}] 
+                            ${room.curse ? `[C:${room.curse.type}]` : '[C:-]'}
+                        </span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong>Track Type:</strong> ${room.trackType}
+                    </div>
+                    ${room.mutation ? `
+                        <div style="margin: 10px 0;">
+                            <strong>Mutation (${room.mutation.roll}/100):</strong><br>
+                            <em>${room.mutation.text}</em>
+                        </div>
+                    ` : ''}
+                    ${room.curse && room.curse.description ? `
+                        <div style="margin: 10px 0; color: var(--danger-red);">
+                            <strong>Curse:</strong> ${room.curse.description}
+                        </div>
+                    ` : ''}
+                    ${room.notes ? `
+                        <div style="margin: 10px 0;">
+                            <strong>Notes:</strong>
+                            <textarea class="notes-area" style="min-height: 60px;" onchange="updatePastRoomNotes(${room.number - 1}, this.value)">${room.notes}</textarea>
+                            <div class="past-room-warning">⚠️ Past room - avoid altering</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function updatePastRoomNotes(index, value) {
+            gameState.rooms[index].notes = value;
+            saveGame();
+        }
+
+        function renderActiveEffects() {
+            const list = document.getElementById('effectsList');
+            document.getElementById('activeEffectCount').textContent = gameState.activeCurses.length;
+            
+            if (gameState.activeCurses.length === 0) {
+                list.innerHTML = 'No active curses';
+                return;
+            }
+            
+            list.innerHTML = gameState.activeCurses.map(curse => `
+                <div class="effect-item">
+                    🔴 ${curse.description} <span style="color: var(--text-faded);">(from Room ${curse.room})</span>
+                </div>
+            `).join('');
+        }
+
+        // ===== DICE ROLLING =====
+        function rollMutation() {
+            const btn = document.getElementById('mutationDice');
+            const result = document.getElementById('mutationResult');
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            
+            if (currentRoomData.mutation) {
+                alert('Mutation already rolled for this room');
+                return;
+            }
+            
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Mutation', room: gameState.currentRoom, roll });
+                
+                let mutationKey = Math.floor((roll - 1) / 2) * 2 + 1;
+                let mutationText = MUTATIONS[mutationKey] || 'No Mutation.';
+                
+                if (roll === 63) {
+                    const roll2 = gameState.rng.roll(100);
+                    gameState.rollHistory.push({ type: 'Mutation (2nd)', room: gameState.currentRoom, roll: roll2 });
+                    let key2 = Math.floor((roll2 - 1) / 2) * 2 + 1;
+                    mutationText += ` AND ${MUTATIONS[key2]}`;
+                }
+                
+                currentRoomData.mutation = { roll, text: mutationText };
+                
+                result.classList.remove('hidden');
+                result.querySelector('.roll-number').textContent = `Roll: ${roll}/100`;
+                result.querySelector('.mutation-text').textContent = mutationText;
+                
+                btn.classList.remove('rolling');
+                btn.classList.add('rolled');
+                renderGame();
+                saveGame();
+            }, 600);
+        }
+
+        function rollCurseCheck() {
+            const btn = document.getElementById('curseCheckDice');
+            const result = document.getElementById('curseResult');
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            
+            if (gameState.curseState.checkRoll !== null) {
+                alert('Curse check already rolled for this room');
+                return;
+            }
+            
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Curse Check', room: gameState.currentRoom, roll });
+                gameState.curseState.checkRoll = roll;
+                
+                result.classList.remove('hidden');
+                const checkResult = document.getElementById('curseCheckResult');
+                
+                if (roll <= 70) {
+                    checkResult.innerHTML = `<div class="roll-number">Curse Check: ${roll}/100</div><div style="margin-top: 10px;">✓ No Curse</div>`;
+                    gameState.curseState.curseType = 'None';
+                    currentRoomData.curse = { roll, type: 'None', description: 'No Curse' };
+                } else if (roll <= 98) {
+                    checkResult.innerHTML = `<div class="roll-number">Curse Check: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">⚠️ Target Curse! Roll for target...</div>`;
+                    gameState.curseState.curseType = 'Target';
+                    document.getElementById('targetDice').disabled = false;
+                } else {
+                    checkResult.innerHTML = `<div class="roll-number">Curse Check: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">⚠️ Mix Curse! Roll for effect...</div>`;
+                    gameState.curseState.curseType = 'Mix';
+                    document.getElementById('effectDice').disabled = false;
+                }
+                
+                btn.classList.remove('rolling');
+                btn.classList.add('rolled');
+                renderGame();
+                saveGame();
+            }, 600);
+        }
+
+        function rollTarget() {
+            const btn = document.getElementById('targetDice');
+            const targetResult = document.getElementById('targetResult');
+            
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll1 = gameState.rng.roll(100);
+                const roll2 = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Curse Target 1', room: gameState.currentRoom, roll: roll1 });
+                gameState.rollHistory.push({ type: 'Curse Target 2', room: gameState.currentRoom, roll: roll2 });
+                gameState.curseState.targetRolls = [roll1, roll2];
+                
+                let targetName = 'Previous track';
+                if (roll1 <= 20) targetName = 'Previous track';
+                else if (roll1 <= 40) targetName = 'Oldest track';
+                else if (roll1 <= 60) targetName = 'Loudest track';
+                else if (roll1 <= 80) targetName = 'Quietest track';
+                else if (roll1 <= 95) targetName = "Player's Choice";
+                else targetName = 'Two Targets';
+                
+                if (roll2 <= 32) targetName += ' (Track Before)';
+                else if (roll2 <= 66) targetName += ' (That Track)';
+                else targetName += ' (Track After)';
+                
+                targetResult.innerHTML = `<div class="roll-number">Target: ${roll1}/100, ${roll2}/100</div><div style="margin-top: 10px;">🎯 ${targetName}</div><div class="curse-warning" style="margin-top: 10px;">Roll for curse effect...</div>`;
+                
+                document.getElementById('effectDice').disabled = false;
+                btn.classList.remove('rolling');
+                btn.classList.add('rolled');
+                saveGame();
+            }, 600);
+        }
+
+        function rollEffect() {
+            const btn = document.getElementById('effectDice');
+            const effectResult = document.getElementById('effectResult');
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: gameState.curseState.curseType === 'Mix' ? 'Mix Curse' : 'Target Curse Effect', room: gameState.currentRoom, roll });
+                gameState.curseState.effectRoll = roll;
+                
+                let curseDescription = '';
+                
+                if (gameState.curseState.curseType === 'Target') {
+                    let curseKey = Math.floor((roll - 1) / 4) * 4 + 1;
+                    let curseEffect = TARGET_CURSES[curseKey] || 'Unknown curse';
+                    
+                    if (roll >= 33 && roll <= 36) {
+                        gameState.forcedRooms++;
+                    }
+                    
+                    if (roll >= 97) {
+                        const reroll1 = gameState.rng.roll(100);
+                        const reroll2 = gameState.rng.roll(100);
+                        gameState.rollHistory.push({ type: 'Curse Re-roll 1', room: gameState.currentRoom, roll: reroll1 });
+                        gameState.rollHistory.push({ type: 'Curse Re-roll 2', room: gameState.currentRoom, roll: reroll2 });
+                        let key1 = Math.floor((reroll1 - 1) / 4) * 4 + 1;
+                        let key2 = Math.floor((reroll2 - 1) / 4) * 4 + 1;
+                        curseEffect = `${TARGET_CURSES[key1]} AND ${TARGET_CURSES[key2]}`;
+                    }
+                    
+                    const targetInfo = gameState.curseState.targetRolls.length > 0 ? 
+                        `Target ${gameState.curseState.targetRolls[0]}/100, ${gameState.curseState.targetRolls[1]}/100 → ` : '';
+                    curseDescription = `${targetInfo}${curseEffect}`;
+                    
+                    gameState.activeCurses.push({ description: curseDescription, room: gameState.currentRoom });
+                    
+                    effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div>`;
+                    
+                } else if (gameState.curseState.curseType === 'Mix') {
+                    let curseKey = 1;
+                    for (let key in MIX_CURSES) {
+                        if (roll >= parseInt(key)) {
+                            curseKey = parseInt(key);
+                        }
+                    }
+                    
+                    let curseEffect = MIX_CURSES[curseKey] || 'Unknown curse';
+                    
+                    if (roll === 1) {
+                        gameState.forcedRooms = -999;
+                    }
+                    
+                    if (roll >= 92) {
+                        effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div><p style="margin-top: 10px;">Rolling three Target Curses...</p>`;
+                        
+                        for (let i = 0; i < 3; i++) {
+                            setTimeout(() => {
+                                const targetRoll1 = gameState.rng.roll(100);
+                                const targetRoll2 = gameState.rng.roll(100);
+                                const targetEffectRoll = gameState.rng.roll(100);
+                                
+                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Roll 1`, room: gameState.currentRoom, roll: targetRoll1 });
+                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Roll 2`, room: gameState.currentRoom, roll: targetRoll2 });
+                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Effect`, room: gameState.currentRoom, roll: targetEffectRoll });
+                                
+                                let curseKey = Math.floor((targetEffectRoll - 1) / 4) * 4 + 1;
+                                let targetCurse = TARGET_CURSES[curseKey];
+                                
+                                gameState.activeCurses.push({ 
+                                    description: `Extra Target Curse ${i+1}: ${targetCurse}`, 
+                                    room: gameState.currentRoom 
+                                });
+                            }, i * 100);
+                        }
+                    }
+                    
+                    curseDescription = `Mix Curse: ${curseEffect}`;
+                    gameState.activeCurses.push({ description: curseDescription, room: gameState.currentRoom });
+                    
+                    effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div>`;
+                }
+                
+                currentRoomData.curse = { 
+                    roll: gameState.curseState.checkRoll, 
+                    type: gameState.curseState.curseType, 
+                    description: curseDescription 
+                };
+                
+                btn.classList.remove('rolling');
+                btn.classList.add('rolled');
+                renderGame();
+                saveGame();
+            }, 600);
+        }
+
+        function usePowerUp() {
+            const select = document.getElementById('powerUpSelect');
+            const type = select.value;
+            
+            if (!type) {
+                alert('Please select a power-up to use');
+                return;
+            }
+            
+            if (gameState.powerUps <= 0) {
+                alert('No power-ups available');
+                return;
+            }
+            
+            if (type === 'lock' && gameState.roomLockUsed) {
+                alert('Room Lock can only be used once per run');
+                return;
+            }
+            
+            if (type === 'painshift' && gameState.currentRoom <= 3) {
+                alert('Pain Shift can only be used after Room 3');
+                return;
+            }
+            
+            if (type === 'breath' && gameState.oneLastBreathUsed) {
+                alert('One Last Breath can only be used once per run');
+                return;
+            }
+            
+            gameState.powerUps--;
+            gameState.powerUpUsedThisRoom = true;
+            
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            currentRoomData.powerUpUsed = type;
+            
+            if (type === 'lock') gameState.roomLockUsed = true;
+            if (type === 'breath') {
+                gameState.oneLastBreathUsed = true;
+                gameState.forcedRooms++;
+            }
+            
+            alert(`Power-Up "${type}" used!`);
+            renderGame();
+            saveGame();
+        }
+
+        function finalizeRoom() {
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            
+            currentRoomData.name = document.getElementById('roomNameInput').value;
+            currentRoomData.trackType = document.getElementById('trackTypeSelect').value;
+            currentRoomData.notes = document.getElementById('notesArea').value;
+            currentRoomData.finalized = true;
+            
+            // Roll for power-up if not used this room
+            if (!gameState.powerUpUsedThisRoom) {
+                const powerUpRoll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Power-Up', room: gameState.currentRoom, roll: powerUpRoll });
+                
+                let powerUpMessage = '';
+                if (powerUpRoll >= 76 && powerUpRoll <= 85) {
+                    gameState.powerUps++;
+                    powerUpMessage = `🎲 Power-Up Roll: ${powerUpRoll}/100<br>✨ +1 Power-Up gained!`;
+                } else if (powerUpRoll >= 86 && powerUpRoll <= 97) {
+                    gameState.powerUps++;
+                    powerUpMessage = `🎲 Power-Up Roll: ${powerUpRoll}/100<br>✨ +1 Power-Up gained! (Volatile - must use next room or lose it)`;
+                } else if (powerUpRoll >= 98) {
+                    gameState.powerUps += 2;
+                    powerUpMessage = `🎲 Power-Up Roll: ${powerUpRoll}/100<br>✨✨ +2 Power-Ups gained!`;
+                } else {
+                    powerUpMessage = `🎲 Power-Up Roll: ${powerUpRoll}/100<br>No Power-Up this time.`;
+                }
+                
+                // Show power-up roll result
+                const banner = document.createElement('div');
+                banner.className = 'powerup-roll-banner';
+                banner.innerHTML = powerUpMessage;
+                document.getElementById('currentRoomCard').appendChild(banner);
+                
+                setTimeout(() => {
+                    banner.remove();
+                    proceedToNextRoom();
+                }, 2000);
+            } else {
+                proceedToNextRoom();
+            }
+        }
+
+        function proceedToNextRoom() {
+            if (gameState.forcedRooms > 0) {
+                gameState.forcedRooms--;
+            }
+            
+            gameState.currentRoom++;
+            startRoom();
+        }
+
+        function updateForcedRoomsBanner() {
+            const banner = document.getElementById('forcedRoomsBanner');
+            const endBtn = document.getElementById('endRunBtn');
+            
+            if (gameState.forcedRooms > 0) {
+                banner.classList.remove('hidden');
+                banner.textContent = `⚠️ ${gameState.forcedRooms} FORCED ROOM${gameState.forcedRooms > 1 ? 'S' : ''} REMAINING`;
+                endBtn.disabled = true;
+            } else if (gameState.forcedRooms === -999) {
+                banner.classList.remove('hidden');
+                banner.textContent = `⚠️ THIS IS THE LAST ROOM`;
+                endBtn.disabled = true;
+            } else {
+                banner.classList.add('hidden');
+                endBtn.disabled = false;
+            }
+        }
+
+        function endRun() {
+            if (gameState.forcedRooms > 0 || gameState.forcedRooms === -999) {
+                alert('Cannot end run while forced rooms remain');
+                return;
+            }
+            
+            const tags = calculateTags();
+            const completedRooms = gameState.rooms.filter(r => r.finalized);
+            
+            showModal('🎉 Run Complete!', `
+                <h3 style="color: var(--ancient-gold);">Victory! You survived the dungeon!</h3>
+                
+                <div style="margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                    <p><strong>Rooms Completed:</strong> ${completedRooms.length}</p>
+                    <p><strong>Power-Ups Remaining:</strong> ${gameState.powerUps}</p>
+                    <p><strong>Total Curses Faced:</strong> ${gameState.activeCurses.length}</p>
+                </div>
+                
+                <h4 style="color: var(--text-glow);">Run Tags:</h4>
+                <div class="tag-list">
+                    ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                </div>
+                
+                <div style="margin: 30px 0; padding: 20px; background: rgba(107, 78, 158, 0.2); border-left: 3px solid var(--mystical-purple); border-radius: 5px;">
+                    <h4 style="color: var(--mystical-purple);">Did I Win?</h4>
+                    <p style="line-height: 1.8; margin-top: 10px;">
+                        The win condition is to experience the constraints and curveballs of external sources. 
+                        If you're letting the system choose your Track Types, you may be subjected to a Run of 5 Rooms 
+                        that are all focused on Basslines. And now you know what that feels like.
+                    </p>
+                    <p style="line-height: 1.8; margin-top: 10px;">
+                        <strong>If this system makes you feel something new, you win.</strong> If it exposes your comfort zone, you win. 
+                        If it makes you think about making music in new ways, you win.
+                    </p>
+                    <p style="line-height: 1.8; margin-top: 10px;">
+                        This system is less about making the best possible music and more about making something that opens your mind. 
+                        It's about being reactive rather than proactive, removing the responsibility of being a genius and providing 
+                        the necessity of being a survivor.
+                    </p>
+                </div>
+                
+                <button class="btn btn-primary" onclick="exportRun()" style="width: 100%; margin-top: 20px;">
+                    📤 Export Your Run
+                </button>
+            `);
+        }
+
+        function calculateTags() {
+            const tags = [];
+            const completedRooms = gameState.rooms.filter(r => r.finalized);
+            const lastRoom = completedRooms[completedRooms.length - 1];
+            
+            // Tragic - collapsed in last room (forced ending)
+            if (gameState.forcedRooms === -999) tags.push('Tragic');
+            
+            // Cursed - 3+ curses
+            if (gameState.activeCurses.length >= 3) tags.push('Cursed');
+            
+            // Compromised - track deleted
+            const hasDeletedTrack = completedRooms.some(r => 
+                r.curse?.description?.toLowerCase().includes('delete track')
+            );
+            if (hasDeletedTrack) tags.push('Compromised');
+            
+            // Chaotic - multiple forced rooms
+            if (completedRooms.some(r => r.curse?.description?.toLowerCase().includes('force'))) {
+                tags.push('Chaotic');
+            }
+            
+            // Indebted - 2+ forced rooms occurred
+            const forcedRoomCount = gameState.rollHistory.filter(r => 
+                r.type.includes('Curse') && completedRooms.some(room => room.curse?.description?.toLowerCase().includes('force'))
+            ).length;
+            if (forcedRoomCount >= 2) tags.push('Indebted');
+            
+            // Clean - low tension
+            if (gameState.activeCurses.length <= 1 && completedRooms.length >= 3) tags.push('Clean');
+            
+            // Overextended - many rooms
+            if (completedRooms.length >= 10) tags.push('Overextended');
+            
+            // Resilient - survived despite odds
+            if (gameState.activeCurses.length >= 5) tags.push('Resilient');
+            
+            // Adapter - used power-ups wisely
+            const powerUpsUsed = completedRooms.filter(r => r.powerUpUsed).length;
+            if (powerUpsUsed >= 2) tags.push('Adapter');
+            
+            return tags.length > 0 ? tags : ['Survivor'];
+        }
+
+        // ===== UTILITY FUNCTIONS =====
+        function toggleCollapsible(id) {
+            const content = document.getElementById(id);
+            content.classList.toggle('open');
+        }
+
+        function copySeed() {
+            const seed = gameState.seed;
+            const url = window.location.href.split('?')[0];
+            const shareText = `🎲 Super Beatmaker Challenge\nSeed: ${seed}\nTry it: ${url}`;
+            
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert('Seed copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this seed:', shareText);
+            });
+        }
+
+        function showRollHistory() {
+            const history = gameState.rollHistory.map((roll, i) => `
+                <div class="reference-item">
+                    #${i + 1}: ${roll.type} (Room ${roll.room}) → ${roll.roll}/100
+                </div>
+            `).join('');
+            
+            showModal('📜 Roll History', history || 'No rolls yet');
+        }
+
+        function showMutationTable() {
+            const mutations = Object.entries(MUTATIONS).map(([key, value]) => {
+                const endKey = parseInt(key) + 1;
+                return `<div class="reference-item"><strong>${key}-${endKey}:</strong> ${value}</div>`;
+            }).join('');
+            
+            showModal('🎲 Mutation Table', `
+                <div class="reference-table">${mutations}</div>
+            `);
+        }
+
+        function showCurseTable() {
+            const targetCurses = Object.entries(TARGET_CURSES).map(([key, value]) => {
+                const endKey = parseInt(key) + 3;
+                return `<div class="reference-item"><strong>${key}-${endKey}:</strong> ${value}</div>`;
+            }).join('');
+            
+            const mixCurses = Object.entries(MIX_CURSES).map(([key, value]) => {
+                const entries = Object.keys(MIX_CURSES).map(k => parseInt(k));
+                const currentIndex = entries.indexOf(parseInt(key));
+                const nextKey = currentIndex < entries.length - 1 ? entries[currentIndex + 1] - 1 : 100;
+                return `<div class="reference-item"><strong>${key}-${nextKey}:</strong> ${value}</div>`;
+            }).join('');
+            
+            showModal('💀 Curse Tables', `
+                <h3>Curse Check</h3>
+                <div class="reference-table">
+                    <div class="reference-item"><strong>01-70:</strong> No Curse</div>
+                    <div class="reference-item"><strong>71-98:</strong> Target Curse</div>
+                    <div class="reference-item"><strong>99-100:</strong> Mix Curse</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Target Selection (First Roll)</h3>
+                <div class="reference-table">
+                    <div class="reference-item"><strong>01-20:</strong> Previous track</div>
+                    <div class="reference-item"><strong>21-40:</strong> Oldest track</div>
+                    <div class="reference-item"><strong>41-60:</strong> Loudest track</div>
+                    <div class="reference-item"><strong>61-80:</strong> Quietest track</div>
+                    <div class="reference-item"><strong>81-95:</strong> Player's Choice</div>
+                    <div class="reference-item"><strong>96-100:</strong> Roll again for two Targets</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Target Selection (Second Roll)</h3>
+                <div class="reference-table">
+                    <div class="reference-item"><strong>01-32:</strong> Track Before</div>
+                    <div class="reference-item"><strong>33-66:</strong> That Track</div>
+                    <div class="reference-item"><strong>67-100:</strong> Track After</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Target Curses</h3>
+                <div class="reference-table">${targetCurses}</div>
+                
+                <h3 style="margin-top: 20px;">Mix Curses</h3>
+                <div class="reference-table">${mixCurses}</div>
+            `);
+        }
+
+        function showPowerUpReference() {
+            showModal('✨ Power-Up Reference', `
+                <h3>Earning Power-Ups</h3>
+                <p style="margin: 10px 0;">After a room resolves without using a Power-Up, roll once:</p>
+                <div class="reference-table">
+                    <div class="reference-item"><strong>01-75:</strong> No Power-Up</div>
+                    <div class="reference-item"><strong>76-85:</strong> Gain 1 Power-Up</div>
+                    <div class="reference-item"><strong>86-97:</strong> Gain 1 Power-Up (Volatile - must use next room or lose it)</div>
+                    <div class="reference-item"><strong>98-100:</strong> Gain 2 Power-Ups</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Power-Up Types</h3>
+                <div class="reference-table">
+                    <div class="reference-item">
+                        <strong>Curse Redirect:</strong> Reroll what Track receives a Curse. You must accept the new result.
+                    </div>
+                    <div class="reference-item">
+                        <strong>Room Lock (max 1 per Run):</strong> Prevent a Track of your choice from future Target Curses. 
+                        Target Curses directed at that Track don't happen.
+                    </div>
+                    <div class="reference-item">
+                        <strong>Pain Shift (only after Room 3):</strong> There is no Mutation in the current Room. Instead, 
+                        this Room is guaranteed to be Cursed. Roll for a Target Curse. Must use before rolling a Curse check.
+                    </div>
+                    <div class="reference-item">
+                        <strong>Split the Wound:</strong> When a Target Curse would alter a Track's effect parameters, choose 
+                        a second Track. Apply the Curse to both Tracks, but resolve it at half strength on each.
+                    </div>
+                    <div class="reference-item">
+                        <strong>One Last Breath:</strong> Once per Run, reverse the damage of a single Curse (cannot undo 
+                        track/note deletion). Forces one last additional Room where you cannot use Power-Ups.
+                    </div>
+                </div>
+                
+                <p style="margin-top: 20px; font-style: italic; color: var(--text-faded);">
+                    Only one Power-Up may be used per Room. Power-Ups are bankable but do not carry over between Runs.
+                </p>
+            `);
+        }
+
+        function showTagsReference() {
+            showModal('🏷️ Run Tags Explained', `
+                <div class="reference-table">
+                    <div class="reference-item"><strong>Tragic:</strong> The Run collapsed in the last Room</div>
+                    <div class="reference-item"><strong>Cursed:</strong> Survived 3 or more Curses</div>
+                    <div class="reference-item"><strong>Compromised:</strong> A foundational Track was deleted or irreversibly damaged</div>
+                    <div class="reference-item"><strong>Chaotic:</strong> You never had control of the Run</div>
+                    <div class="reference-item"><strong>Unlikely:</strong> An unexpected Track became the foundation of the Run</div>
+                    <div class="reference-item"><strong>Indebted:</strong> At least 2 Forced Rooms</div>
+                    <div class="reference-item"><strong>Accidental:</strong> Things worked out and you don't know why</div>
+                    <div class="reference-item"><strong>Clean:</strong> Your Run resolved with little tension</div>
+                    <div class="reference-item"><strong>Unfinished:</strong> Beat doesn't feel complete</div>
+                    <div class="reference-item"><strong>Adapter:</strong> You went with the flow</div>
+                    <div class="reference-item"><strong>Cornered:</strong> You repeatedly worked around limitations rather than through them</div>
+                    <div class="reference-item"><strong>Overextended:</strong> You went too far</div>
+                    <div class="reference-item"><strong>Resilient:</strong> All hope was lost at one point</div>
+                    <div class="reference-item"><strong>Hollow:</strong> The Run was completed...but at what cost?</div>
+                </div>
+            `);
+        }
+
+        function showModal(title, body) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = body;
+            document.getElementById('genericModal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('genericModal').classList.remove('open');
+        }
+
+        function saveGame() {
+            const saveData = {
+                ...gameState,
+                rng: null
+            };
+            localStorage.setItem('beatmaker_autosave', JSON.stringify(saveData));
+        }
+
+        // ===== EXPORT/IMPORT =====
+        function exportRun() {
+            const exportData = {
+                version: '1.0',
+                seed: gameState.seed,
+                rooms: gameState.rooms.filter(r => r.finalized),
+                powerUpsRemaining: gameState.powerUps,
+                activeCurses: gameState.activeCurses,
+                rollHistory: gameState.rollHistory,
+                tags: calculateTags(),
+                exportedAt: new Date().toISOString()
+            };
+            
+            const markdown = generateMarkdownExport(exportData);
+            
+            showModal('📤 Export Run', `
+                <h3>Choose Export Format</h3>
+                <div style="display: flex; gap: 10px; margin: 20px 0;">
+                    <button class="btn" onclick="downloadJSON()">📥 JSON (Import Later)</button>
+                    <button class="btn" onclick="copyMarkdown()">📋 Markdown</button>
+                </div>
+                
+                <h4>Markdown Preview:</h4>
+                <textarea class="export-text" id="markdownExport" readonly>${markdown}</textarea>
+            `);
+            
+            window.currentExport = { json: exportData, markdown };
+        }
+
+        function generateMarkdownExport(data) {
+            let md = `# 🎲 SUPER BEATMAKER RUN\n\n`;
+            md += `**Seed:** ${data.seed}\n`;
+            md += `**Rooms Completed:** ${data.rooms.length}\n`;
+            md += `**Power-Ups Remaining:** ${data.powerUpsRemaining}\n`;
+            md += `**Tags:** ${data.tags.join(', ')}\n\n`;
+            md += `---\n\n`;
+            
+            data.rooms.forEach(room => {
+                md += `## Room ${room.number}: ${room.name || 'Untitled'}\n\n`;
+                md += `**Track Type:** ${room.trackType}\n\n`;
+                
+                if (room.mutation) {
+                    md += `**Mutation (${room.mutation.roll}/100):**\n`;
+                    md += `${room.mutation.text}\n\n`;
+                }
+                
+                if (room.curse && room.curse.description) {
+                    md += `**Curse:**\n`;
+                    md += `${room.curse.description}\n\n`;
+                }
+                
+                if (room.powerUpUsed) {
+                    md += `**Power-Up Used:** ${room.powerUpUsed}\n\n`;
+                }
+                
+                if (room.notes) {
+                    md += `**Notes:**\n`;
+                    md += `${room.notes}\n\n`;
+                }
+                
+                md += `---\n\n`;
+            });
+            
+            md += `\n**Challenge your friends with seed: ${data.seed}**\n`;
+            
+            return md;
+        }
+
+        function downloadJSON() {
+            const data = window.currentExport.json;
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `beatmaker_${gameState.seed}_room${gameState.currentRoom - 1}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyMarkdown() {
+            const text = window.currentExport.markdown;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Markdown copied to clipboard!');
+            }).catch(() => {
+                document.getElementById('markdownExport').select();
+                document.execCommand('copy');
+                alert('Markdown copied!');
+            });
+        }
+
+        function importRun() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file to import');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    gameState = {
+                        seed: data.seed,
+                        rng: new SeededRandom(data.seed),
+                        currentRoom: data.rooms.length + 1,
+                        rooms: data.rooms,
+                        powerUps: data.powerUpsRemaining,
+                        activeCurses: data.activeCurses,
+                        rollHistory: data.rollHistory,
+                        forcedRooms: 0,
+                        roomLockUsed: false,
+                        oneLastBreathUsed: false,
+                        usedEffects: [],
+                        powerUpUsedThisRoom: false,
+                        curseState: {
+                            checkRoll: null,
+                            targetRolls: [],
+                            effectRoll: null,
+                            curseType: null
+                        }
+                    };
+                    
+                    for (let i = 0; i < gameState.rollHistory.length; i++) {
+                        gameState.rng.roll(100);
+                    }
+                    
+                    closeStartModal();
+                    startRoom();
+                    saveGame();
+                    
+                    alert(`Run imported! Continuing from Room ${gameState.currentRoom}`);
+                } catch (err) {
+                    alert('Error importing file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ===== EVENT LISTENERS =====
+        document.getElementById('roomNameInput').addEventListener('input', (e) => {
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            currentRoomData.name = e.target.value;
+            saveGame();
+        });
+
+        document.getElementById('trackTypeSelect').addEventListener('change', (e) => {
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            currentRoomData.trackType = e.target.value;
+            saveGame();
+        });
+
+        document.getElementById('notesArea').addEventListener('input', (e) => {
+            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+            currentRoomData.notes = e.target.value;
+            saveGame();
+        });
+
+        document.getElementById('randomTrackType').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Track Type', room: gameState.currentRoom, roll });
+                
+                let index = Math.floor((roll - 1) / 7);
+                if (index >= TRACK_TYPES.length) index = TRACK_TYPES.length - 1;
+                
+                document.getElementById('trackTypeSelect').value = TRACK_TYPES[index];
+                const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+                currentRoomData.trackType = TRACK_TYPES[index];
+                saveGame();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
