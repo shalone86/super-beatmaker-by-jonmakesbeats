@@ -552,11 +552,19 @@
 </head>
 <body>
     <div class="header">
-        <div class="title">⚔️ Super Beatmaker</div>
+        <div class="title">
+            ⚔️ Super Beatmaker
+            <div style="font-size: 0.4em; margin-top: 5px; font-weight: normal; letter-spacing: 1px;">
+                <a href="https://www.patreon.com/c/jonmakesbeats" target="_blank" style="color: var(--text-faded); text-decoration: none;">
+                    created by Jon Makes Beats
+                </a>
+            </div>
+        </div>
         <div class="header-stats">
             <span id="roomCounter">Room 0</span>
             <span id="powerUpCounter">⚡ Power-Ups: 0</span>
             <span id="curseCounter">🔴 Active Curses: 0</span>
+            <span id="curseTargetIndicator" class="hidden" style="color: var(--danger-red); font-weight: bold;">⚠️ All curses → <span id="curseTargetTrack"></span></span>
         </div>
         <div class="seed-display">
             <span style="color: var(--text-faded);">Seed:</span>
@@ -656,10 +664,6 @@
 
             <div class="action-buttons">
                 <button class="btn" onclick="showRollHistory()">📜 Roll History</button>
-                <button class="btn" onclick="showMutationTable()">🎲 Mutations</button>
-                <button class="btn" onclick="showCurseTable()">💀 Curses</button>
-                <button class="btn" onclick="showPowerUpReference()">✨ Power-Ups</button>
-                <button class="btn" onclick="showTagsReference()">🏷️ Run Tags</button>
                 <button class="btn btn-danger" onclick="endRun()" id="endRunBtn">🏁 End Run</button>
                 <button class="btn" onclick="exportRun()">📤 Export Run</button>
             </div>
@@ -669,6 +673,16 @@
     <!-- Start Modal -->
     <div class="modal open" id="startModal">
         <div class="modal-content">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 2em; color: var(--torch-glow); text-shadow: 0 0 20px rgba(255, 140, 66, 0.5);">
+                    ⚔️ SUPER BEATMAKER
+                </div>
+                <div style="font-size: 0.9em; margin-top: 5px; color: var(--text-faded);">
+                    <a href="https://www.patreon.com/c/jonmakesbeats" target="_blank" style="color: var(--text-faded); text-decoration: none;">
+                        created by Jon Makes Beats
+                    </a>
+                </div>
+            </div>
             <div class="modal-header">Enter the Dungeon</div>
             <div class="start-options">
                 <div class="option-group">
@@ -681,7 +695,7 @@
                     <h3>⚔️ Challenge Mode</h3>
                     <p style="color: var(--text-faded); margin: 10px 0;">Enter a seed to play the same challenge</p>
                     <input type="text" class="seed-input" id="seedInput" maxlength="6" placeholder="K7R3M2">
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
                         <button class="btn" onclick="generateRandomSeed()">Generate Random</button>
                         <button class="btn btn-primary" onclick="startSeededRun()">Start Challenge</button>
                     </div>
@@ -707,8 +721,8 @@
     </div>
 
     <!-- Generic Modal -->
-    <div class="modal" id="genericModal">
-        <div class="modal-content">
+    <div class="modal" id="genericModal" onclick="closeModalOnBackdrop(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header" id="modalTitle">Modal</div>
             <div id="modalBody"></div>
             <button class="btn" onclick="closeModal()" style="margin-top: 20px;">Close</button>
@@ -862,6 +876,8 @@
             oneLastBreathUsed: false,
             usedEffects: [],
             powerUpUsedThisRoom: false,
+            curseTargetTrack: null, // For curse 45
+            lastCurse: null, // For curse 93
             curseState: {
                 checkRoll: null,
                 targetRolls: [],
@@ -949,6 +965,8 @@
                 oneLastBreathUsed: false,
                 usedEffects: [],
                 powerUpUsedThisRoom: false,
+                curseTargetTrack: null,
+                lastCurse: null,
                 curseState: {
                     checkRoll: null,
                     targetRolls: [],
@@ -1134,11 +1152,32 @@
                 let mutationKey = Math.floor((roll - 1) / 2) * 2 + 1;
                 let mutationText = MUTATIONS[mutationKey] || 'No Mutation.';
                 
+                // Handle special mutations
                 if (roll === 63) {
                     const roll2 = gameState.rng.roll(100);
                     gameState.rollHistory.push({ type: 'Mutation (2nd)', room: gameState.currentRoom, roll: roll2 });
                     let key2 = Math.floor((roll2 - 1) / 2) * 2 + 1;
                     mutationText += ` AND ${MUTATIONS[key2]}`;
+                } else if (roll === 95 || roll === 96) {
+                    // Force a Target Curse
+                    mutationText = "Take a Target Curse instead.";
+                    if (gameState.currentRoom > 1) {
+                        gameState.curseState.checkRoll = 85; // Force target curse
+                        gameState.curseState.curseType = 'Target';
+                        // Auto-show curse section
+                        setTimeout(() => {
+                            alert('Mutation 95: This room will receive a Target Curse!');
+                        }, 100);
+                    }
+                } else if (roll === 99 || roll === 100) {
+                    // Roll for track deletion
+                    showModal('⚠️ Mutation 99-100', `
+                        <p style="color: var(--danger-red); font-weight: bold;">Roll afterward. 80 or higher = delete Track.</p>
+                        <p style="margin: 20px 0;">If this is Room One, no Mutation applies.</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <button class="dice-button" id="deletionDice" onclick="rollTrackDeletion()">🎲</button>
+                        </div>
+                    `);
                 }
                 
                 currentRoomData.mutation = { roll, text: mutationText };
@@ -1151,6 +1190,25 @@
                 btn.classList.add('rolled');
                 renderGame();
                 saveGame();
+            }, 600);
+        }
+
+        function rollTrackDeletion() {
+            const btn = document.getElementById('deletionDice');
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Track Deletion Check', room: gameState.currentRoom, roll });
+                
+                if (roll >= 80) {
+                    alert(`Roll: ${roll}/100 - ⚠️ DELETE THIS TRACK after composing!`);
+                } else {
+                    alert(`Roll: ${roll}/100 - Track is safe.`);
+                }
+                
+                closeModal();
             }, 600);
         }
 
@@ -1219,7 +1277,7 @@
                 else targetName = 'Two Targets';
                 
                 if (roll2 <= 32) targetName += ' (Track Before)';
-                else if (roll2 <= 66) targetName += ' (That Track)';
+                else if (roll2 <= 66) targetName += ' (Current Track)';
                 else targetName += ' (Track After)';
                 
                 targetResult.innerHTML = `<div class="roll-number">Target: ${roll1}/100, ${roll2}/100</div><div style="margin-top: 10px;">🎯 ${targetName}</div><div class="curse-warning" style="margin-top: 10px;">Roll for curse effect...</div>`;
@@ -1250,18 +1308,55 @@
                     let curseKey = Math.floor((roll - 1) / 4) * 4 + 1;
                     let curseEffect = TARGET_CURSES[curseKey] || 'Unknown curse';
                     
+                    // Handle special target curses
                     if (roll >= 33 && roll <= 36) {
+                        // Force a Room with two mutations
                         gameState.forcedRooms++;
-                    }
-                    
-                    if (roll >= 97) {
-                        const reroll1 = gameState.rng.roll(100);
-                        const reroll2 = gameState.rng.roll(100);
-                        gameState.rollHistory.push({ type: 'Curse Re-roll 1', room: gameState.currentRoom, roll: reroll1 });
-                        gameState.rollHistory.push({ type: 'Curse Re-roll 2', room: gameState.currentRoom, roll: reroll2 });
-                        let key1 = Math.floor((reroll1 - 1) / 4) * 4 + 1;
-                        let key2 = Math.floor((reroll2 - 1) / 4) * 4 + 1;
-                        curseEffect = `${TARGET_CURSES[key1]} AND ${TARGET_CURSES[key2]}`;
+                        showModal('⚠️ Target Curse 33-36', `
+                            <p style="color: var(--danger-red); font-weight: bold;">Force a Room. The next Room will have TWO Mutations.</p>
+                            <p style="margin: 20px 0;">Roll for both mutations now:</p>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <button class="dice-button" id="forcedMutation1" onclick="rollForcedMutation(1)">🎲</button>
+                                <span style="margin: 0 20px;">Mutation 1</span>
+                            </div>
+                            <div id="forced1Result" class="hidden" style="margin: 20px 0;"></div>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <button class="dice-button" id="forcedMutation2" onclick="rollForcedMutation(2)" disabled>🎲</button>
+                                <span style="margin: 0 20px;">Mutation 2</span>
+                            </div>
+                            <div id="forced2Result" class="hidden"></div>
+                        `);
+                    } else if (roll >= 45 && roll <= 48) {
+                        // This track is now target of all curses
+                        const trackName = prompt('Which track is cursed? Enter track name/number:');
+                        gameState.curseTargetTrack = trackName || 'Unknown Track';
+                        document.getElementById('curseTargetIndicator').classList.remove('hidden');
+                        document.getElementById('curseTargetTrack').textContent = gameState.curseTargetTrack;
+                    } else if (roll >= 93 && roll <= 96) {
+                        // Apply last curse to another track
+                        if (gameState.lastCurse) {
+                            curseEffect += ` (Last Curse was: ${gameState.lastCurse})`;
+                        } else {
+                            curseEffect = 'First Curse - ignore this effect.';
+                        }
+                    } else if (roll >= 97) {
+                        // Re-roll twice
+                        showModal('⚠️ Target Curse 97-100', `
+                            <p style="color: var(--danger-red); font-weight: bold;">Re-roll Twice!</p>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <button class="dice-button" id="reroll1" onclick="rollCurseReroll(1)">🎲</button>
+                                <span style="margin: 0 20px;">Re-roll 1</span>
+                            </div>
+                            <div id="reroll1Result" class="hidden" style="margin: 20px 0;"></div>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <button class="dice-button" id="reroll2" onclick="rollCurseReroll(2)" disabled>🎲</button>
+                                <span style="margin: 0 20px;">Re-roll 2</span>
+                            </div>
+                            <div id="reroll2Result" class="hidden"></div>
+                        `);
+                        btn.classList.remove('rolling');
+                        btn.classList.add('rolled');
+                        return; // Exit early, modal will handle the rest
                     }
                     
                     const targetInfo = gameState.curseState.targetRolls.length > 0 ? 
@@ -1269,6 +1364,7 @@
                     curseDescription = `${targetInfo}${curseEffect}`;
                     
                     gameState.activeCurses.push({ description: curseDescription, room: gameState.currentRoom });
+                    gameState.lastCurse = curseEffect; // Store for curse 93
                     
                     effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div>`;
                     
@@ -1282,32 +1378,28 @@
                     
                     let curseEffect = MIX_CURSES[curseKey] || 'Unknown curse';
                     
+                    // Handle special mix curses
                     if (roll === 1) {
-                        gameState.forcedRooms = -999;
-                    }
-                    
-                    if (roll >= 92) {
-                        effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div><p style="margin-top: 10px;">Rolling three Target Curses...</p>`;
-                        
-                        for (let i = 0; i < 3; i++) {
-                            setTimeout(() => {
-                                const targetRoll1 = gameState.rng.roll(100);
-                                const targetRoll2 = gameState.rng.roll(100);
-                                const targetEffectRoll = gameState.rng.roll(100);
-                                
-                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Roll 1`, room: gameState.currentRoom, roll: targetRoll1 });
-                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Roll 2`, room: gameState.currentRoom, roll: targetRoll2 });
-                                gameState.rollHistory.push({ type: `Extra Target ${i+1} - Effect`, room: gameState.currentRoom, roll: targetEffectRoll });
-                                
-                                let curseKey = Math.floor((targetEffectRoll - 1) / 4) * 4 + 1;
-                                let targetCurse = TARGET_CURSES[curseKey];
-                                
-                                gameState.activeCurses.push({ 
-                                    description: `Extra Target Curse ${i+1}: ${targetCurse}`, 
-                                    room: gameState.currentRoom 
-                                });
-                            }, i * 100);
+                        if (gameState.currentRoom === 1 || gameState.currentRoom === 2) {
+                            alert('Mix Curse 1: This is Room One or Two - re-rolling!');
+                            btn.disabled = false;
+                            btn.classList.remove('rolling', 'rolled');
+                            gameState.curseState.effectRoll = null;
+                            return;
+                        } else {
+                            gameState.forcedRooms = -999; // Force last room
                         }
+                    } else if (roll >= 92) {
+                        // Roll three target curses - show three sets of dice
+                        showModal('⚠️ Mix Curse 92-100', `
+                            <p style="color: var(--danger-red); font-weight: bold;">Roll THREE Target Curses!</p>
+                            <div id="threeTargetCurses"></div>
+                            <button class="btn btn-primary" onclick="startThreeTargetCurses()" id="startThreeCurses">Start Rolling</button>
+                        `);
+                        btn.classList.remove('rolling');
+                        btn.classList.add('rolled');
+                        effectResult.innerHTML = `<div class="roll-number">Effect: ${roll}/100</div><div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div>`;
+                        return;
                     }
                     
                     curseDescription = `Mix Curse: ${curseEffect}`;
@@ -1326,6 +1418,134 @@
                 btn.classList.add('rolled');
                 renderGame();
                 saveGame();
+            }, 600);
+        }
+
+        // Handle forced mutations for curse 33
+        function rollForcedMutation(num) {
+            const btn = document.getElementById(`forcedMutation${num}`);
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: `Forced Mutation ${num}`, room: gameState.currentRoom + 1, roll });
+                
+                let mutationKey = Math.floor((roll - 1) / 2) * 2 + 1;
+                let mutationText = MUTATIONS[mutationKey] || 'No Mutation.';
+                
+                document.getElementById(`forced${num}Result`).classList.remove('hidden');
+                document.getElementById(`forced${num}Result`).innerHTML = `
+                    <div class="roll-number">Roll: ${roll}/100</div>
+                    <div style="margin-top: 10px;">${mutationText}</div>
+                `;
+                
+                if (num === 1) {
+                    document.getElementById('forcedMutation2').disabled = false;
+                } else {
+                    setTimeout(() => closeModal(), 2000);
+                }
+                
+                btn.classList.remove('rolling');
+            }, 600);
+        }
+
+        // Handle curse 97 re-rolls
+        function rollCurseReroll(num) {
+            const btn = document.getElementById(`reroll${num}`);
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: `Curse Re-roll ${num}`, room: gameState.currentRoom, roll });
+                
+                let curseKey = Math.floor((roll - 1) / 4) * 4 + 1;
+                let curseEffect = TARGET_CURSES[curseKey] || 'Unknown curse';
+                
+                document.getElementById(`reroll${num}Result`).classList.remove('hidden');
+                document.getElementById(`reroll${num}Result`).innerHTML = `
+                    <div class="roll-number">Roll: ${roll}/100</div>
+                    <div class="curse-warning" style="margin-top: 10px;">💀 ${curseEffect}</div>
+                `;
+                
+                gameState.activeCurses.push({ description: `Re-roll ${num}: ${curseEffect}`, room: gameState.currentRoom });
+                
+                if (num === 1) {
+                    document.getElementById('reroll2').disabled = false;
+                } else {
+                    setTimeout(() => {
+                        closeModal();
+                        renderGame();
+                        saveGame();
+                    }, 2000);
+                }
+                
+                btn.classList.remove('rolling');
+            }, 600);
+        }
+
+        // Handle mix curse 92 - three target curses
+        let threeTargetProgress = 0;
+        function startThreeTargetCurses() {
+            document.getElementById('startThreeCurses').disabled = true;
+            threeTargetProgress = 0;
+            rollNextTargetCurse();
+        }
+
+        function rollNextTargetCurse() {
+            if (threeTargetProgress >= 3) {
+                setTimeout(() => {
+                    closeModal();
+                    renderGame();
+                    saveGame();
+                }, 2000);
+                return;
+            }
+            
+            threeTargetProgress++;
+            const container = document.getElementById('threeTargetCurses');
+            const curseDiv = document.createElement('div');
+            curseDiv.style.cssText = 'margin: 20px 0; padding: 20px; background: rgba(255, 68, 88, 0.1); border-radius: 5px;';
+            curseDiv.innerHTML = `
+                <h4>Target Curse ${threeTargetProgress}</h4>
+                <div style="text-align: center; margin: 20px 0;">
+                    <button class="dice-button" id="threeCurse${threeTargetProgress}" onclick="rollSingleTargetCurse(${threeTargetProgress})">🎲</button>
+                </div>
+                <div id="threeCurseResult${threeTargetProgress}"></div>
+            `;
+            container.appendChild(curseDiv);
+        }
+
+        function rollSingleTargetCurse(num) {
+            const btn = document.getElementById(`threeCurse${num}`);
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const targetRoll1 = gameState.rng.roll(100);
+                const targetRoll2 = gameState.rng.roll(100);
+                const effectRoll = gameState.rng.roll(100);
+                
+                gameState.rollHistory.push({ type: `Extra Target ${num} - Target 1`, room: gameState.currentRoom, roll: targetRoll1 });
+                gameState.rollHistory.push({ type: `Extra Target ${num} - Target 2`, room: gameState.currentRoom, roll: targetRoll2 });
+                gameState.rollHistory.push({ type: `Extra Target ${num} - Effect`, room: gameState.currentRoom, roll: effectRoll });
+                
+                let curseKey = Math.floor((effectRoll - 1) / 4) * 4 + 1;
+                let curseEffect = TARGET_CURSES[curseKey];
+                
+                document.getElementById(`threeCurseResult${num}`).innerHTML = `
+                    <div class="roll-number">Target: ${targetRoll1}, ${targetRoll2} | Effect: ${effectRoll}</div>
+                    <div class="curse-warning">${curseEffect}</div>
+                `;
+                
+                gameState.activeCurses.push({ 
+                    description: `Extra Target Curse ${num}: ${curseEffect}`, 
+                    room: gameState.currentRoom 
+                });
+                
+                btn.classList.remove('rolling');
+                rollNextTargetCurse();
             }, 600);
         }
 
@@ -1358,21 +1578,54 @@
                 return;
             }
             
-            gameState.powerUps--;
-            gameState.powerUpUsedThisRoom = true;
+            // Show dice roll for power-up usage
+            showModal('✨ Using Power-Up', `
+                <p>Rolling to use: <strong>${type}</strong></p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <button class="dice-button" id="powerUpDice" onclick="confirmPowerUpUse('${type}')">🎲</button>
+                </div>
+                <p style="color: var(--text-faded); font-size: 0.9em;">Click the dice to confirm usage</p>
+            `);
+        }
+
+        function confirmPowerUpUse(type) {
+            const btn = document.getElementById('powerUpDice');
+            btn.classList.add('rolling');
+            btn.disabled = true;
             
-            const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
-            currentRoomData.powerUpUsed = type;
-            
-            if (type === 'lock') gameState.roomLockUsed = true;
-            if (type === 'breath') {
-                gameState.oneLastBreathUsed = true;
-                gameState.forcedRooms++;
-            }
-            
-            alert(`Power-Up "${type}" used!`);
-            renderGame();
-            saveGame();
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Power-Up Usage', room: gameState.currentRoom, roll });
+                
+                gameState.powerUps--;
+                gameState.powerUpUsedThisRoom = true;
+                
+                const currentRoomData = gameState.rooms[gameState.rooms.length - 1];
+                currentRoomData.powerUpUsed = type;
+                
+                if (type === 'lock') gameState.roomLockUsed = true;
+                if (type === 'breath') {
+                    gameState.oneLastBreathUsed = true;
+                    gameState.forcedRooms++;
+                }
+                
+                // Handle Curse Redirect - reset to target roll
+                if (type === 'redirect' && gameState.curseState.curseType === 'Target') {
+                    gameState.curseState.targetRolls = [];
+                    gameState.curseState.effectRoll = null;
+                    document.getElementById('targetDice').disabled = false;
+                    document.getElementById('effectDice').disabled = true;
+                    document.getElementById('targetDice').classList.remove('rolled');
+                    document.getElementById('effectDice').classList.remove('rolled');
+                    document.getElementById('targetResult').innerHTML = '';
+                    document.getElementById('effectResult').innerHTML = '';
+                }
+                
+                closeModal();
+                alert(`Power-Up "${type}" used! (Roll: ${roll}/100)`);
+                renderGame();
+                saveGame();
+            }, 600);
         }
 
         function finalizeRoom() {
@@ -1424,6 +1677,9 @@
             
             gameState.currentRoom++;
             startRoom();
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function updateForcedRoomsBanner() {
@@ -1450,8 +1706,55 @@
                 return;
             }
             
+            // Check for curse 53 (force room on end)
+            const hasCurse53 = gameState.activeCurses.some(c => 
+                c.description.includes('When declaring the Run over, Roll a d100')
+            );
+            
+            if (hasCurse53) {
+                showModal('⚠️ Curse 53 Active', `
+                    <p style="color: var(--danger-red); font-weight: bold;">
+                        A curse requires you to roll: On 51 or above, force another Room.
+                    </p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <button class="dice-button" id="curse53Dice" onclick="rollCurse53Check()">🎲</button>
+                    </div>
+                `);
+                return;
+            }
+            
+            showRunComplete();
+        }
+
+        function rollCurse53Check() {
+            const btn = document.getElementById('curse53Dice');
+            btn.classList.add('rolling');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                const roll = gameState.rng.roll(100);
+                gameState.rollHistory.push({ type: 'Curse 53 End Check', room: gameState.currentRoom, roll });
+                
+                if (roll >= 51) {
+                    alert(`Roll: ${roll}/100 - You must play another Room!`);
+                    gameState.forcedRooms++;
+                    closeModal();
+                    updateForcedRoomsBanner();
+                } else {
+                    alert(`Roll: ${roll}/100 - You may end the run.`);
+                    closeModal();
+                    showRunComplete();
+                }
+            }, 600);
+        }
+
+        function showRunComplete() {
             const tags = calculateTags();
             const completedRooms = gameState.rooms.filter(r => r.finalized);
+            
+            const tagElements = tags.map(tag => 
+                `<span class="tag" style="cursor: pointer;" onclick="showTagMeaning('${tag}')">${tag}</span>`
+            ).join('');
             
             showModal('🎉 Run Complete!', `
                 <h3 style="color: var(--ancient-gold);">Victory! You survived the dungeon!</h3>
@@ -1462,26 +1765,16 @@
                     <p><strong>Total Curses Faced:</strong> ${gameState.activeCurses.length}</p>
                 </div>
                 
-                <h4 style="color: var(--text-glow);">Run Tags:</h4>
+                <h4 style="color: var(--text-glow);">Run Tags (click to learn more):</h4>
                 <div class="tag-list">
-                    ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    ${tagElements}
                 </div>
                 
                 <div style="margin: 30px 0; padding: 20px; background: rgba(107, 78, 158, 0.2); border-left: 3px solid var(--mystical-purple); border-radius: 5px;">
                     <h4 style="color: var(--mystical-purple);">Did I Win?</h4>
                     <p style="line-height: 1.8; margin-top: 10px;">
-                        The win condition is to experience the constraints and curveballs of external sources. 
-                        If you're letting the system choose your Track Types, you may be subjected to a Run of 5 Rooms 
-                        that are all focused on Basslines. And now you know what that feels like.
-                    </p>
-                    <p style="line-height: 1.8; margin-top: 10px;">
-                        <strong>If this system makes you feel something new, you win.</strong> If it exposes your comfort zone, you win. 
-                        If it makes you think about making music in new ways, you win.
-                    </p>
-                    <p style="line-height: 1.8; margin-top: 10px;">
-                        This system is less about making the best possible music and more about making something that opens your mind. 
-                        It's about being reactive rather than proactive, removing the responsibility of being a genius and providing 
-                        the necessity of being a survivor.
+                        The goal of this game is to make music while experiencing the constraints and curveballs of external sources. 
+                        <strong>If this system made you feel something new, exposed your comfort zone, or made you think about making music in new ways, you won.</strong>
                     </p>
                 </div>
                 
@@ -1489,6 +1782,29 @@
                     📤 Export Your Run
                 </button>
             `);
+        }
+
+        const TAG_MEANINGS = {
+            'Tragic': 'The Run collapsed in the last Room',
+            'Cursed': 'Survived 3 or more Curses',
+            'Compromised': 'A foundational Track was deleted or irreversibly damaged',
+            'Chaotic': 'You never had control of the Run',
+            'Unlikely': 'An unexpected Track became the foundation of the Run',
+            'Indebted': 'At least 2 Forced Rooms',
+            'Accidental': 'Things worked out and you don\'t know why',
+            'Clean': 'Your Run resolved with little tension',
+            'Unfinished': 'Beat doesn\'t feel complete',
+            'Adapter': 'You went with the flow',
+            'Cornered': 'You repeatedly worked around limitations rather than through them',
+            'Overextended': 'You went too far',
+            'Resilient': 'All hope was lost at one point',
+            'Hollow': 'The Run was completed...but at what cost?',
+            'Survivor': 'You made it through'
+        };
+
+        function showTagMeaning(tag) {
+            const meaning = TAG_MEANINGS[tag] || 'No description available';
+            alert(`${tag}: ${meaning}`);
         }
 
         function calculateTags() {
@@ -1689,6 +2005,12 @@
 
         function closeModal() {
             document.getElementById('genericModal').classList.remove('open');
+        }
+
+        function closeModalOnBackdrop(event) {
+            if (event.target.id === 'genericModal') {
+                closeModal();
+            }
         }
 
         function saveGame() {
